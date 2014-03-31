@@ -9,7 +9,7 @@ clc,clear all,close all
 Nrx = 4;
 Ntx = 1;
 % OFDM Init**********
-Nsym = 100;
+Nsym = 3;
 Nfft = 32;
 Ng = 6;
 Nofdm = Nfft + Ng;
@@ -53,7 +53,7 @@ InterPower = 10^(-SIR/10);
 NoisePower = 10^(-SNR/10);
 
 %% Channel
-RecDataDomin = zeros(Nrx,Nofdm*Nsym);
+RecDataDomin = zeros(Nrx,Nofdm*Nsym);4
 for k1 = 1:1:Nrx
     RecDataUserPart = filter(UserChannel(k1,:),1,UserTransData);
     RecDataInterPart = sqrt(InterPower)*filter(InterChannel(k1,:),1,InterTransData);
@@ -70,50 +70,33 @@ for k1 = 1:1:Nrx
     OperationDataRE(k1,:,:) = fft(OperationDataTimeDomRE,Nfft)/sqrt(Nfft);
 end
 % ChannelEstimation method 1:LS
+
 for k1 = 1:1:Nrx
     YpilotSymbol = squeeze(OperationDataRE(k1,:,:));
     H_est = mean(YpilotSymbol./ModDataRE,2);
     H = fft(UserChannel(k1,:),Nfft);
-    
-    k = 0:UserChannelTaps-1;
-    hh = UserChannel(k1,:)*UserChannel(k1,:)';
-    tmp = UserChannel(k1,:).*conj(UserChannel(k1,:)).*k;
-    r = sum(tmp)/hh;
-    r2 = tmp*k.'/hh;
-    tao_rms = sqrt(r2-r*r);
-    df = 1/Nfft;
-    j2pi_tao_df = i*2*pi*tao_rms*df;
-    K1 = repmat([0:Nfft-1].',1,Nfft);
-K2 = repmat([0:Nfft-1],Nfft,1);
-rf = 1./(1+j2pi_tao_df*(K1-K2));
-K3 = repmat([0:Nfft-1].',1,Nfft);
-K4 = repmat([0:Nfft-1],Nfft,1);
-rf2 = 1./(1+j2pi_tao_df*(K3-K4));
-Rpp = rf2+eye(length(H_est),length(H_est))/SNR
+    H_mmse = mmse_ce(H_est,Nfft,1,UserChannel(k1,:),SNR);
 
-H_mmse = rf/(Rpp)*H_est;
-    
-    figure(k1),plot(10*log10(abs(H.*conj(H)))),hold on,stem(10*log10(H_est.*conj(H_est))),plot(10*log10(H_mmse.*conj(H_mmse)),'r:+')
 end
-% ChannelEstimation method 2:MMSE
-k = 0:UserChannelTaps-1;
-hh = UserChannel(1,:)*UserChannel(1,:)';
-tmp = UserChannel(1,:).*conj(UserChannel(1,:)).*k;
-r = sum(tmp)/hh;
-r2 = tmp*k.'/hh;
-tao_rms = sqrt(r2-r*r);
-df = 1/Nfft;
-j2pi_tao_df = i*2*pi*tao_rms*df;
-K1 = repmat([0:Nfft-1].',1,Nfft);
-K2 = repmat([0:Nfft-1],Nfft,1);
-rf = 1./(1+j2pi_tao_df*(K1-K2));
-K3 = repmat([0:Nfft-1].',1,Nfft);
-K4 = repmat([0:Nfft-1],Nfft,1);
-rf2 = 1./(1+j2pi_tao_df*(K3-K4));
-Rpp = rf2+eye(length(H_est),length(H_est))/SNR
-
-H_mmse = rf*inv(Rpp)*H_est;
-figure(), plot(10*log10(abs(H.*conj(H)))),hold on,title('test mmse');plot(10*log10(H_mmse.*conj(H_mmse)),'r:+');plot(10*log10(H_est.*conj(H_est)),'b:o');
+% % ChannelEstimation method 2:MMSE
+% k = 0:UserChannelTaps-1;
+% hh = UserChannel(1,:)*UserChannel(1,:)';
+% tmp = UserChannel(1,:).*conj(UserChannel(1,:)).*k;
+% r = sum(tmp)/hh;
+% r2 = tmp*k.'/hh;
+% tao_rms = sqrt(r2-r*r);
+% df = 1/Nfft;
+% j2pi_tao_df = i*2*pi*tao_rms*df;
+% K1 = repmat([0:Nfft-1].',1,Nfft);
+% K2 = repmat([0:Nfft-1],Nfft,1);
+% rf = 1./(1+j2pi_tao_df*(K1-K2));
+% K3 = repmat([0:Nfft-1].',1,Nfft);
+% K4 = repmat([0:Nfft-1],Nfft,1);
+% rf2 = 1./(1+j2pi_tao_df*(K3-K4));
+% Rpp = rf2+eye(length(H_est),length(H_est))/SNR
+% 
+% H_mmse = rf*inv(Rpp)*H_est;
+% figure(), plot(10*log10(abs(H.*conj(H)))),hold on,title('test mmse');plot(10*log10(H_mmse.*conj(H_mmse)),'r:+');plot(10*log10(H_est.*conj(H_est)),'b:o');
 %stem([1:32],[10*log10(H_est.*conj(H_est));10*log10(H_est.*conj(H_est))]);title('test mmse');
 %figure(),plot(10*log10(abs(H.*conj(H)))),hold on,st = stem(10*log10(H_mmse.*conj(H_mmse))),set(st,'MarkerFaceColor','blue')
 % ChannelEstimation method 3:Signal Estimation Technic
